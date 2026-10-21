@@ -1,6 +1,6 @@
 {
   "name": "todo-scan",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Scan a codebase for TODO / FIXME / HACK markers and report them.",
   "type": "module",
   "main": "./src/scanner.js",

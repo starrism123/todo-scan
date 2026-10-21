@@ -9,7 +9,11 @@ import { FORMATS, formatReport } from './format.js';
 import { DEFAULT_MARKERS, scanPaths, summarize } from './scanner.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const pkg = JSON.parse(readFileSync(path.join(here, '..', 'package.json'), 'utf8'));
+// Strip a BOM: PowerShell's Set-Content and a few editors add one, and it makes
+// JSON.parse throw.
+const pkg = JSON.parse(
+  readFileSync(path.join(here, '..', 'package.json'), 'utf8').replace(/^\uFEFF+/, ''),
+);
 
 const HELP = `todo-scan ${pkg.version}
 
@@ -21,6 +25,7 @@ Options:
   -m, --markers <list>   Comma-separated markers (default: ${DEFAULT_MARKERS.join(',')})
   -f, --format <name>    Report format: ${FORMATS.join(', ')} (default: text)
       --ignore <list>    Comma-separated directory names to skip
+      --exclude <list>   Comma-separated glob patterns to skip (*, ?, **)
       --fail-on <list>   Exit 1 when any of these markers is found
       --max <n>          Exit 1 when more than n markers are found
       --config <file>    Use a specific config file
@@ -55,6 +60,7 @@ export function parseCliArgs(argv) {
       markers: { type: 'string', short: 'm' },
       format: { type: 'string', short: 'f' },
       ignore: { type: 'string' },
+      exclude: { type: 'string' },
       'fail-on': { type: 'string' },
       max: { type: 'string' },
       config: { type: 'string' },
@@ -90,6 +96,7 @@ async function main() {
     cli = {
       markers: values.markers ? splitList(values.markers) : undefined,
       ignore: values.ignore ? splitList(values.ignore) : undefined,
+      exclude: values.exclude ? splitList(values.exclude) : undefined,
       format: values.format,
       failOn: values['fail-on'] ? splitList(values['fail-on']) : undefined,
       max: values.max === undefined ? undefined : parseCount(values.max),
@@ -122,6 +129,7 @@ async function main() {
   const hits = await scanPaths(options.paths, {
     markers: options.markers,
     ignoreDirs: options.ignore,
+    exclude: options.exclude,
   });
   const report = formatReport(hits, {
     format: options.format,

@@ -7,10 +7,11 @@ Zero dependencies, ESM, Node.js 20+.
 ## Usage
 
 ```bash
-node src/cli.js .                 # scan the current directory
-node src/cli.js src lib           # scan several paths
-node src/cli.js -m TODO,PERF .    # custom marker set
-node src/cli.js --ignore vendor . # extra directories to skip
+node src/cli.js .                   # scan the current directory
+node src/cli.js src lib             # scan several paths
+node src/cli.js -m TODO,PERF .      # custom marker set
+node src/cli.js --ignore vendor .   # extra directories to skip
+node src/cli.js --exclude '*.min.js',vendor/** .   # skip files by pattern
 ```
 
 Output looks like:
@@ -25,6 +26,19 @@ A summary line follows the hits:
 ```
 5 marker(s) TODO: 3  FIXME: 2  HACK: 0  XXX: 0
 ```
+
+## Excluding files
+
+`--exclude` takes comma-separated glob patterns. A pattern with no slash is
+matched against the bare file name at any depth; a pattern with a slash is
+matched against the path relative to the scanned directory.
+
+| Pattern | Skips |
+| --- | --- |
+| `*.test.js` | every `*.test.js` file, anywhere |
+| `src/*.js` | `.js` files directly inside `src/`, but not deeper |
+| `**/fixtures/**` | everything under any `fixtures/` directory |
+| `?eadme.md` | `readme.md` and `README.md`, one character wildcard |
 
 ## Report formats
 
@@ -79,6 +93,7 @@ Every key is optional, and CLI flags win over config values:
 | --- | --- | --- |
 | `markers` | string[] | Markers to look for |
 | `ignore` | string[] | Extra directory names to skip |
+| `exclude` | string[] | Glob patterns of files to skip |
 | `format` | `text` \| `json` \| `markdown` | Report format |
 | `failOn` | string[] | Markers that must not appear at all |
 | `max` | integer | Maximum total markers allowed |

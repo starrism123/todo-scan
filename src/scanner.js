@@ -118,7 +118,44 @@ export async function scanFile(file, options = {}) {
   return scanText(text, file, options);
 }
 
-async function walk(target, settings, hits) {
+/**
+ * Translate an exclude pattern into a matcher.
+ *
+ * Supports `*` (one path segment), `?` (one character) and `**` (any depth).
+ * A pattern without a slash also matches on the bare file name, so
+ * `--exclude *.test.js` behaves the way people expect.
+ *
+ * @param {string} pattern
+ * @returns {{regex: RegExp, basenameOnly: boolean}}
+ */
+export function compileExcludePattern(pattern) {
+  // Two passes: first escape literal characters while parking the wildcards as
+  // placeholders, then expand the placeholders. Doing it in one pass lets the
+  // generated "[^/]*" be rewritten again by the next replacement.
+  const source = pattern
+    .replace(/[.+^${}()|[\]\\]/g, '\\$&')
+    .replace(/\*\*\//g, '\u0000')
+    .replace(/\*\*/g, '\u0001')
+    .replace(/\*/g, '\u0002')
+    .replace(/\?/g, '\u0003')
+    .replace(/\u0000/g, '(?:.*/)?')
+    .replace(/\u0001/g, '.*')
+    .replace(/\u0002/g, '[^/]*')
+    .replace(/\u0003/g, '[^/]');
+
+  return {
+    regex: new RegExp(`^${source}$`),
+    basenameOnly: !pattern.includes('/'),
+  };
+}
+
+function isExcluded(relativePath, basename, matchers) {
+  return matchers.some((matcher) =>
+    matcher.basenameOnly ? matcher.regex.test(basename) : matcher.regex.test(relativePath),
+  );
+}
+
+async function walk(target, root, settings, hits) {
   let entries;
   try {
     entries = await readdir(target, { withFileTypes: true });
@@ -130,9 +167,13 @@ async function walk(target, settings, hits) {
 
   for (const entry of entries) {
     const full = path.join(target, entry.name);
+    const relativePath = path.relative(root, full).split(path.sep).join('/');
+
+    if (isExcluded(relativePath, entry.name, settings.excludeMatchers)) continue;
+
     if (entry.isDirectory()) {
       if (settings.ignoreDirs.has(entry.name)) continue;
-      await walk(full, settings, hits);
+      await walk(full, root, settings, hits);
       continue;
     }
     if (!entry.isFile()) continue;
@@ -160,6 +201,7 @@ async function walk(target, settings, hits) {
  * @param {object} [options]
  * @param {string[]} [options.markers]
  * @param {string[]} [options.ignoreDirs]
+ * @param {string[]} [options.exclude] Glob patterns to skip.
  * @param {(hits: Array) => void} [options.onChange]
  * @returns {Promise<Array>}
  */
@@ -168,6 +210,7 @@ export async function scanPaths(targets, options = {}) {
   const settings = {
     markers: normalizeMarkers(options.markers),
     ignoreDirs: new Set(options.ignoreDirs ?? DEFAULT_IGNORED_DIRS),
+    excludeMatchers: (options.exclude ?? []).map(compileExcludePattern),
     onChange: options.onChange,
   };
 
@@ -182,9 +225,11 @@ export async function scanPaths(targets, options = {}) {
     }
 
     if (stats.isFile()) {
+      const basename = path.basename(resolved);
+      if (isExcluded(basename, basename, settings.excludeMatchers)) continue;
       hits.push(...(await scanFile(resolved, { markers: settings.markers })));
     } else if (stats.isDirectory()) {
-      await walk(resolved, settings, hits);
+      await walk(resolved, resolved, settings, hits);
     }
   }
   return hits;
