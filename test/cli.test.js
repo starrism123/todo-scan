@@ -20,6 +20,12 @@ test('parseCliArgs keeps positional paths', () => {
   assert.deepEqual(positionals, ['src', 'lib']);
 });
 
+test('parseCliArgs reads gate and config flags', () => {
+  assert.equal(parseCliArgs(['--fail-on', 'FIXME']).values['fail-on'], 'FIXME');
+  assert.equal(parseCliArgs(['--max', '3']).values.max, '3');
+  assert.equal(parseCliArgs(['--config', 'custom.json']).values.config, 'custom.json');
+});
+
 test('parseCliArgs rejects unknown flags', () => {
   assert.throws(() => parseCliArgs(['--nope']), /nope/);
 });

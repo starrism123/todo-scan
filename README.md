@@ -56,6 +56,61 @@ The JSON payload has a stable shape:
 }
 ```
 
+## Configuration
+
+Drop a `.todo-scan.json` (or `todo-scan.json`) in the directory you run the
+tool from and it is picked up automatically. Pass `--config <file>` to point at
+a specific file instead.
+
+```json
+{
+  "markers": ["TODO", "FIXME", "PERF"],
+  "ignore": ["vendor", "fixtures"],
+  "format": "markdown",
+  "failOn": ["FIXME"],
+  "max": 0,
+  "paths": ["src"]
+}
+```
+
+Every key is optional, and CLI flags win over config values:
+
+| Key | Type | Meaning |
+| --- | --- | --- |
+| `markers` | string[] | Markers to look for |
+| `ignore` | string[] | Extra directory names to skip |
+| `format` | `text` \| `json` \| `markdown` | Report format |
+| `failOn` | string[] | Markers that must not appear at all |
+| `max` | integer | Maximum total markers allowed |
+| `paths` | string[] | Default paths when none are given |
+
+Unknown keys are an error rather than being ignored, so a misspelled `failon`
+cannot silently disable the gate.
+
+## CI gate
+
+`--fail-on` and `--max` turn the scan into a gate:
+
+```bash
+node src/cli.js --fail-on FIXME src        # fail if a single FIXME exists
+node src/cli.js --max 0 .                  # fail on any marker at all
+```
+
+| Exit code | Meaning |
+| --- | --- |
+| 0 | Scan finished and the gate passed |
+| 1 | The gate tripped (the report is still printed) |
+| 2 | Usage error: bad flag, malformed config, unknown format |
+
+A minimal GitHub Actions job:
+
+```yaml
+- uses: actions/checkout@v4
+- uses: actions/setup-node@v4
+  with: { node-version: '24' }
+- run: node src/cli.js --fail-on FIXME src
+```
+
 ## What gets skipped
 
 The scanner never descends into `node_modules`, `dist`, `build`, `coverage`,

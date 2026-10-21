@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { evaluateGate, loadConfig, resolveOptions } from './config.js';
 import { FORMATS, formatReport } from './format.js';
 import { DEFAULT_MARKERS, scanPaths, summarize } from './scanner.js';
 
@@ -20,8 +21,15 @@ Options:
   -m, --markers <list>   Comma-separated markers (default: ${DEFAULT_MARKERS.join(',')})
   -f, --format <name>    Report format: ${FORMATS.join(', ')} (default: text)
       --ignore <list>    Comma-separated directory names to skip
+      --fail-on <list>   Exit 1 when any of these markers is found
+      --max <n>          Exit 1 when more than n markers are found
+      --config <file>    Use a specific config file
   -h, --help             Show this help
   -v, --version          Print the version
+
+A .todo-scan.json file in the working directory is loaded automatically.
+
+Exit codes: 0 ok, 1 gate tripped, 2 usage error.
 `;
 
 function splitList(value) {
@@ -29,6 +37,14 @@ function splitList(value) {
     .split(',')
     .map((item) => item.trim())
     .filter(Boolean);
+}
+
+function parseCount(value) {
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 0) {
+    throw new Error(`--max expects a non-negative integer, got "${value}".`);
+  }
+  return parsed;
 }
 
 export function parseCliArgs(argv) {
@@ -39,6 +55,9 @@ export function parseCliArgs(argv) {
       markers: { type: 'string', short: 'm' },
       format: { type: 'string', short: 'f' },
       ignore: { type: 'string' },
+      'fail-on': { type: 'string' },
+      max: { type: 'string' },
+      config: { type: 'string' },
       help: { type: 'boolean', short: 'h' },
       version: { type: 'boolean', short: 'v' },
     },
@@ -66,22 +85,57 @@ async function main() {
     return;
   }
 
-  const format = values.format ?? 'text';
-  if (!FORMATS.includes(format)) {
-    process.stderr.write(`Unknown format "${format}". Expected one of: ${FORMATS.join(', ')}.\n`);
+  let cli;
+  try {
+    cli = {
+      markers: values.markers ? splitList(values.markers) : undefined,
+      ignore: values.ignore ? splitList(values.ignore) : undefined,
+      format: values.format,
+      failOn: values['fail-on'] ? splitList(values['fail-on']) : undefined,
+      max: values.max === undefined ? undefined : parseCount(values.max),
+      paths: positionals,
+    };
+  } catch (error) {
+    process.stderr.write(`${error.message}\n`);
     process.exitCode = 2;
     return;
   }
 
-  const targets = positionals.length > 0 ? positionals : ['.'];
-  const markers = values.markers ? splitList(values.markers) : DEFAULT_MARKERS;
-  const ignoreDirs = values.ignore ? splitList(values.ignore) : undefined;
+  let options;
+  try {
+    const { config } = await loadConfig({ cwd: process.cwd(), filename: values.config });
+    options = resolveOptions({ cli, config });
+  } catch (error) {
+    process.stderr.write(`${error.message}\n`);
+    process.exitCode = 2;
+    return;
+  }
 
-  const hits = await scanPaths(targets, { markers, ignoreDirs });
-  const report = formatReport(hits, { format, cwd: process.cwd(), markers });
+  if (!FORMATS.includes(options.format)) {
+    process.stderr.write(
+      `Unknown format "${options.format}". Expected one of: ${FORMATS.join(', ')}.\n`,
+    );
+    process.exitCode = 2;
+    return;
+  }
+
+  const hits = await scanPaths(options.paths, {
+    markers: options.markers,
+    ignoreDirs: options.ignore,
+  });
+  const report = formatReport(hits, {
+    format: options.format,
+    cwd: process.cwd(),
+    markers: options.markers,
+  });
   process.stdout.write(`${report}\n`);
 
-  return summarize(hits, markers);
+  const summary = summarize(hits, options.markers);
+  const reason = evaluateGate(summary, options);
+  if (reason) {
+    process.stderr.write(`todo-scan: ${reason}\n`);
+    process.exitCode = 1;
+  }
 }
 
 // Only run when invoked as a script, so tests and other modules can import
