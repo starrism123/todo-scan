@@ -7,7 +7,7 @@ import { DEFAULT_MARKERS } from './scanner.js';
 /** Config file names that are discovered automatically, in priority order. */
 export const CONFIG_FILENAMES = ['.todo-scan.json', 'todo-scan.json'];
 
-const ALLOWED_KEYS = new Set(['markers', 'ignore', 'format', 'failOn', 'max', 'paths']);
+const ALLOWED_KEYS = new Set(['markers', 'ignore', 'exclude', 'format', 'failOn', 'max', 'paths']);
 
 function isStringArray(value) {
   return Array.isArray(value) && value.every((item) => typeof item === 'string' && item.length > 0);
@@ -41,6 +41,9 @@ export function validateConfig(raw, source = 'config') {
   }
   if (raw.ignore !== undefined && !isStringArray(raw.ignore)) {
     throw new Error(`"ignore" in ${source} must be an array of strings.`);
+  }
+  if (raw.exclude !== undefined && !isStringArray(raw.exclude)) {
+    throw new Error(`"exclude" in ${source} must be an array of strings.`);
   }
   if (raw.paths !== undefined && !isStringArray(raw.paths)) {
     throw new Error(`"paths" in ${source} must be an array of strings.`);
@@ -118,12 +121,13 @@ export async function loadConfig(options = {}) {
  * @param {object} input
  * @param {object} [input.cli] Values parsed from argv.
  * @param {object} [input.config] Values loaded from a config file.
- * @returns {{markers: string[], ignore: string[]|undefined, format: string, failOn: string[], max: number|null, paths: string[]}}
+ * @returns {{markers: string[], ignore: string[]|undefined, exclude: string[], format: string, failOn: string[], max: number|null, paths: string[]}}
  */
 export function resolveOptions({ cli = {}, config = {} } = {}) {
   return {
     markers: cli.markers?.length ? cli.markers : (config.markers ?? DEFAULT_MARKERS),
     ignore: cli.ignore?.length ? cli.ignore : config.ignore,
+    exclude: cli.exclude?.length ? cli.exclude : (config.exclude ?? []),
     format: cli.format ?? config.format ?? 'text',
     failOn: (cli.failOn?.length ? cli.failOn : (config.failOn ?? [])).map((marker) =>
       marker.toUpperCase(),
