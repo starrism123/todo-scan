@@ -1,5 +1,9 @@
 # todo-scan
 
+[![CI](https://github.com/starrism123/todo-scan/actions/workflows/ci.yml/badge.svg)](https://github.com/starrism123/todo-scan/actions/workflows/ci.yml)
+![Node.js 20+](https://img.shields.io/badge/node-%3E%3D20-brightgreen)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 Scan a codebase for `TODO` / `FIXME` / `HACK` markers and report them.
 
 Zero dependencies, ESM, Node.js 20+.
