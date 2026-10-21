@@ -1,0 +1,28 @@
+{
+  "name": "todo-scan",
+  "version": "0.1.0",
+  "description": "Scan a codebase for TODO / FIXME / HACK markers and report them.",
+  "type": "module",
+  "main": "./src/scanner.js",
+  "bin": {
+    "todo-scan": "./src/cli.js"
+  },
+  "files": [
+    "src"
+  ],
+  "scripts": {
+    "test": "node --test",
+    "start": "node src/cli.js"
+  },
+  "keywords": [
+    "todo",
+    "fixme",
+    "cli",
+    "linter",
+    "codebase"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "MIT"
+}
