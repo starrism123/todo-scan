@@ -12,6 +12,7 @@ node src/cli.js src lib             # scan several paths
 node src/cli.js -m TODO,PERF .      # custom marker set
 node src/cli.js --ignore vendor .   # extra directories to skip
 node src/cli.js --exclude '*.min.js',vendor/** .   # skip files by pattern
+node src/cli.js -q --fail-on FIXME src              # silent: exit code only
 ```
 
 Output looks like:
@@ -124,6 +125,13 @@ A minimal GitHub Actions job:
 - uses: actions/setup-node@v4
   with: { node-version: '24' }
 - run: node src/cli.js --fail-on FIXME src
+```
+
+Add `-q` when the exit code is all you need: the report is suppressed, so a
+successful run prints nothing and a failure prints only the reason.
+
+```bash
+node src/cli.js -q --max 0 . && echo "clean"
 ```
 
 ## What gets skipped
