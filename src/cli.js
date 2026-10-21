@@ -29,6 +29,7 @@ Options:
       --fail-on <list>   Exit 1 when any of these markers is found
       --max <n>          Exit 1 when more than n markers are found
       --config <file>    Use a specific config file
+  -q, --quiet            Print nothing on success; only gate errors
   -h, --help             Show this help
   -v, --version          Print the version
 
@@ -64,6 +65,7 @@ export function parseCliArgs(argv) {
       'fail-on': { type: 'string' },
       max: { type: 'string' },
       config: { type: 'string' },
+      quiet: { type: 'boolean', short: 'q' },
       help: { type: 'boolean', short: 'h' },
       version: { type: 'boolean', short: 'v' },
     },
@@ -131,12 +133,17 @@ async function main() {
     ignoreDirs: options.ignore,
     exclude: options.exclude,
   });
-  const report = formatReport(hits, {
-    format: options.format,
-    cwd: process.cwd(),
-    markers: options.markers,
-  });
-  process.stdout.write(`${report}\n`);
+
+  // --quiet is for pipelines: the exit code carries the answer, so the report
+  // would only add noise to the CI log.
+  if (!values.quiet) {
+    const report = formatReport(hits, {
+      format: options.format,
+      cwd: process.cwd(),
+      markers: options.markers,
+    });
+    process.stdout.write(`${report}\n`);
+  }
 
   const summary = summarize(hits, options.markers);
   const reason = evaluateGate(summary, options);

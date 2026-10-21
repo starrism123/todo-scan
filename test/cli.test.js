@@ -26,6 +26,12 @@ test('parseCliArgs reads gate and config flags', () => {
   assert.equal(parseCliArgs(['--config', 'custom.json']).values.config, 'custom.json');
 });
 
+test('parseCliArgs reads the quiet flag in both spellings', () => {
+  assert.equal(parseCliArgs(['-q']).values.quiet, true);
+  assert.equal(parseCliArgs(['--quiet']).values.quiet, true);
+  assert.equal(parseCliArgs([]).values.quiet, undefined);
+});
+
 test('parseCliArgs rejects unknown flags', () => {
   assert.throws(() => parseCliArgs(['--nope']), /nope/);
 });
