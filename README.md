@@ -155,3 +155,6 @@ npm test
 ```
 
 Tests use the built-in `node:test` runner, so nothing needs to be installed.
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the branch, commit and pull request
+conventions used by this repository.
